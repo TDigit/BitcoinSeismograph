@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Bitcoin Data</title>
+    <link href="https://fonts.googleapis.com/css?family=Lato|Quicksand:400,500" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <script src="/Chart.bundle.min.js"></script>
+    <!-- Load c3.css -->
+    <link href="c3.css" rel="stylesheet">
+
+    <!-- Load d3.js and c3.js -->
+    <script src="d3.min.js"></script>
+    <script src="c3.min.js"></script>
+</head>
+
+<body>
+
+    <header>
+        <h1>Bitcoin Blockchain Data</h1>
+    </header>
+    <main>
+        <div id="status">
+            <div id="status-left">
+                <h2>Events</h2>
+                <table id="events">
+                    <thead>
+                        <tr>
+                            <th>TXID or Main Chain Height/Fork Height</th>
+                            <th>Description</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="events-tbody"></tbody>
+                </table>
+            </div>
+            <div id="status-right">
+                <h2>Network</h2>
+                <p>Active Nodes:
+                    <span id="active-nodes"></span>
+                </p>
+                <div id="chartUseragents"></div>
+            </div>
+        </div>
+        <h2 class="clear">Block Size</h2>
+        <div id="chart1"></div>
+        <h2>Weight</h2>
+        <div id="chart2"></div>
+        <h2>Transaction Count</h2>
+        <div id="chart3"></div>
+        <h2>Time to previous Block</h2>
+        <div id="chart4"></div>
+        <h2>Difficulty</h2>
+        <div id="chart5"></div>
+    </main>
+    <footer>
+        <a href="/legal">Provider &amp; Privacy</a>
+    </footer>
+</body>
+<script>
+    var host = window.document.location.host.replace(/:.*/, '');
+    var ws = new WebSocket('ws://' + host + ':80');
+
+    var userAgentChart = c3.generate({
+        bindto: '#chartUseragents',
+        data: {
+            rows: [],
+            type: 'donut',
+        },
+        donut: {
+            title: "Useragents",
+            label: {
+                format: function (value, ratio, id) {
+                    return value + " (" + d3.format("%")(ratio) + ")";
+                }
+            }
+        }
+    });
+
+    var blockChartData = {
+        x: 'x',
+        xFormat: '%Y-%m-%dT%H:%M:%S.%LZ',
+        columns: [],
+        colors: {
+            "Mean Size (50 Blocks)": '#aaa',
+            "Mean Weight (50 Blocks)": '#aaa',
+            "Mean Transactions (50 Blocks)": '#aaa',
+            "Mean Time between Blocks (50 Blocks)": '#aaa',
+            "Mean Difficulty (50 Blocks)": '#aaa',
+        },
+        classes: {
+            "Mean Size (50 Blocks)": 'avg-line',
+            "Mean Weight (50 Blocks)": 'avg-line',
+            "Mean Transactions (50 Blocks)": 'avg-line',
+            "Mean Time between Blocks (50 Blocks)": 'avg-line',
+            "Mean Difficulty (50 Blocks)": 'avg-line'
+        },
+
+        types: {
+            "Mean Size (50 Blocks)": 'spline',
+            "Mean Weight (50 Blocks)": 'spline',
+            "Mean Transactions (50 Blocks)": 'spline',
+            "Mean Time between Blocks (50 Blocks)": 'spline',
+            "Mean Difficulty (50 Blocks)": 'spline'
+        }
+    };
+    var blockChartAxis = {
+        x: {
+            type: 'timeseries',
+            tick: {
+                format: '%d-%m-%Y %H:%M',
+                fit: true,
+                count: 30
+            }
+        }
+    };
+    var blockChartGrid = {
+        y: {
+            show: true
+        }
+    }
+    var sizeChart = c3.generate({
+        bindto: '#chart1',
+        data: blockChartData,
+        axis: blockChartAxis,
+        grid: blockChartGrid
+    });
+
+    var weightChart = c3.generate({
+        bindto: '#chart2',
+        data: blockChartData,
+        axis: blockChartAxis,
+        grid: blockChartGrid
+    });
+
+    var transactionsChart = c3.generate({
+        bindto: '#chart3',
+        data: blockChartData,
+        axis: blockChartAxis,
+        grid: blockChartGrid
+    });
+
+    var tbbChart = c3.generate({
+        bindto: '#chart4',
+        data: blockChartData,
+        axis: blockChartAxis,
+        grid: blockChartGrid
+    });
+
+    var difficultyChart = c3.generate({
+        bindto: '#chart5',
+        data: blockChartData,
+        axis: blockChartAxis,
+        grid: blockChartGrid
+    });
+
+
+    ws.onmessage = function (event) {
+        //updateStats(JSON.parse(event.data));
+        let msg = JSON.parse(event.data)
+        if (msg.datatype == "node") {
+
+            nodeCount = 0;
+            msg.payload.forEach((val) => {
+                nodeCount += val.count;
+            });
+
+            var data = convertPointsToColumn(msg.payload, "useragent", "count");
+            userAgentChart.load({
+                columns: data
+            });
+            document.getElementById("active-nodes").innerText = nodeCount;
+        }
+        if (msg.datatype == "block") {
+
+            loadChartData(msg.payload, "time", "size", "Size", sizeChart, 1);
+            loadChartData(msg.payload, "time", "weight", "Weight", weightChart, 1);
+            loadChartData(msg.payload, "time", "txcount", "Transactions", transactionsChart, 4);
+            loadChartData(msg.payload, "time", "tbb", "Time between Blocks", tbbChart, 4);
+            loadChartData(msg.payload, "time", "difficulty", "Difficulty", difficultyChart, 4);
+        }
+        if (msg.datatype == "event") {
+            msg.payload.forEach((event, index) => {
+                console.log(event.type);
+                var infoIdentifier = "";
+                if (event.type == "value") {
+                    infoIdentifier = '<a href="https://blockchain.info/de/tx/' + event.identifier +'">' + event.identifier.substr(0, 10) + '...</a>';
+                } else {
+                    infoIdentifier = event.identifier;
+                }
+                document.getElementById("events-tbody").innerHTML += "<tr><td>" + infoIdentifier +
+                    "</td><td>" + event.description + "</td><td>" + new Date(event.time).toLocaleString() + "</td></tr>";
+            });
+
+        }
+    }
+
+    let average = (array) => array.reduce((a, b) => a + b) / array.length;
+
+    function loadChartData(data, pointName, valueName, valueLabel, chart, deviMultiplicator) {
+        timeseriesData = convertPointsToTimeseries(data, pointName, valueName, valueLabel);
+        chart.load({
+            columns: timeseriesData
+        });
+        timeseriesData[2].shift();
+        var stats = getDataStats(timeseriesData[2]);
+        chart.axis.min({
+            y: Math.max(stats.average - stats.standardDeviation * deviMultiplicator, 0)
+        });
+
+        chart.axis.max({
+            y: stats.average + stats.standardDeviation * deviMultiplicator,
+        });
+    }
+
+    function convertPointsToColumn(data, pointName, valueName) {
+        names = [];
+        values = []
+        data.forEach((val) => {
+            var indexOfName = values.indexOf(val[pointName]);
+            if (indexOfName == -1) {
+                names.push(val[pointName]);
+                values.push([val[valueName]]);
+            } else {
+                values[indexOfName].push(val[valueName]);
+            }
+        });
+        returnData = [];
+        names.forEach((val, index) => {
+            returnData.push([val].concat(values[index]));
+        });
+        return returnData;
+    }
+
+    function convertPointsToTimeseries(data, pointName, valueName, valueLabel) {
+        timestamps = ['x'];
+        values = [valueLabel];
+        valuesAverage = ["Mean " + valueLabel + " (50 Blocks)"];
+        avgArray = []
+        data.forEach((val) => {
+            timestamps.push(val[pointName]);
+            values.push(val[valueName]);
+            avgArray.push(val[valueName]);
+            valuesAverage.push(average(avgArray));
+            if (avgArray.length > 50) {
+                avgArray.shift();
+            }
+        });
+        return [timestamps, valuesAverage, values];
+    }
+
+    function getDataStats(data) {
+        //console.log(data);
+        var sum = 0;
+        var sum2 = 0;
+        data.forEach(elem => {
+            sum = sum + elem;
+        });
+        var avg = sum / data.length;
+        data.forEach((elem) => {
+            sum2 = sum2 + Math.pow((elem - avg), 2);
+        });
+        var vari = sum2 / data.length;
+        var stDev = Math.sqrt(vari)
+        return {
+            average: avg,
+            variance: vari,
+            standardDeviation: stDev
+        }
+    }
+</script>
+
+</html>

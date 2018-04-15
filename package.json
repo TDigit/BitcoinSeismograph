@@ -1,0 +1,22 @@
+{
+  "name": "bitcoinapi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "init": "node init.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bitcoin": "^3.0.1",
+    "bitcoin-net": "^4.5.0",
+    "express": "^4.15.4",
+    "influx": "^5.0.7",
+    "mongodb": "^2.2.31",
+    "underscore": "^1.8.3",
+    "ws": "^3.1.0"
+  }
+}

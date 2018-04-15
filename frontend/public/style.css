@@ -1,0 +1,58 @@
+body {
+    font-family: 'Lato', Arial, sans-serif;
+    color: #2B3140;
+}
+
+div {
+    display: inline;
+}
+
+header, main, footer{
+    width: 90%;
+    margin: 0 auto;
+}
+
+a{
+    text-decoration: none;
+    color: #1B2027;
+}
+
+a:hover{
+    color: #3B4359;
+}
+
+h1, h2, h3, h4, h5, h6{
+    font-family: 'Quicksand', Arial sans-serif;
+    font-weight: 400;
+}
+
+h1{
+    font-size: 34px;
+}
+
+h2{
+    font-size: 28px
+}
+
+h3, h4, h5, h6{
+    font-weight: 500;
+}
+
+canvas{
+    margin-bottom: 60px;
+}
+
+#status-left{
+    float: left;
+    width: 40%;
+    font-size: 11px;
+}
+
+#status-right{
+    float: right;
+    width: 50%;
+}
+
+.clear{
+    clear: both;
+}
